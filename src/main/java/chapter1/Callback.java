@@ -14,7 +14,7 @@ public class Callback {
 
         void process() {
             Long input = 1L;
-            scService.calculate(input, output -> { // Async & Non-Blocking, 콜백 함수 호출 방식에 따라 동기/비동기 구현 가능
+            scService.calculate(input, output -> { // Async & (Non-Blocking or Blocking), 콜백 함수 호출 방식에 따라 동기/비동기 구현 가능
                 // ...
             });
         }
