@@ -27,7 +27,7 @@ public class TemperatureController {
         // 구독 해지 관리 및 동기화를 신경 쓰지 않음
         // 이벤트 버스를 사용하지 않음으로 이식성이 높고 테스트가 가능한 코드
         temperatureSensor.temperatureStream()
-                .subscribe(emitter.getSubscriber());
+                .subscribe(emitter.getSubscriber());  // 구독
 
         return emitter;
     }

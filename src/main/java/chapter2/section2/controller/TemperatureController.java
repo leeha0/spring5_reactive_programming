@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 @RestController
+//@Controller: Callable(동기), DeferredResult(비동기) 반환 (Spring3)
 public class TemperatureController {
     private final Set<SseEmitter> clients = new CopyOnWriteArraySet<>();
 
@@ -24,6 +25,10 @@ public class TemperatureController {
             method = RequestMethod.GET
     )
     public SseEmitter events(HttpServletRequest request) {
+        // Spring4.2+ ResponseBodyEmitter, SseEmitter, StreamingResponseBody보
+        // StreamingResponseBody: 반환값을 비동기로 전달
+
+        // 이벤트를 보내는 목적
         SseEmitter emitter = new SseEmitter();
         clients.add(emitter);
 

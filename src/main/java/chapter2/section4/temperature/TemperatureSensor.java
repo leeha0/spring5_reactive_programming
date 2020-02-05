@@ -15,7 +15,7 @@ public class TemperatureSensor {
                     .range(0, Integer.MAX_VALUE)
                     .concatMap(tick -> Observable
                             .just(tick)
-                            .delay(rnd.nextInt(5000), TimeUnit.MILLISECONDS)
+                            .delay(rnd.nextInt(5000), TimeUnit.MILLISECONDS) // 임의의지연
                             .map(tickValue -> this.probe()))
                     .publish() // 이벤트를 모든 대상 스트림으로 브로드캐스팅
                     .refCount(); // 적어도 하나 이상의 구독자가 있을 때만 구독 생성
