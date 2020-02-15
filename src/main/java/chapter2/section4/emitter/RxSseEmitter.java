@@ -31,7 +31,7 @@ public class RxSseEmitter extends SseEmitter {
                     // SSE 클라이언트에게 다시 신호를 보냄
                     RxSseEmitter.this.send(temperature);
                 } catch (IOException e) {
-                    unsubscribe();
+                    unsubscribe(); // 2.x onError, onComplete가 내부적으로 호출
                 }
             }
         };
