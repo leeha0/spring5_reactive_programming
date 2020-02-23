@@ -8,16 +8,16 @@ import java.util.concurrent.CompletionStage;
 @RestController
 public class MyController {
 
-    public ListenableFuture<T> requestData() {
-//        AsyncRestTemplate httpClient = ;
-//        AsyncDatabaseClient databaseClient = ;
-
-        CompletionStage<String> completionStage = AsyncAdepters.toCompletion(
-//                httpClient.execute()
-        );
-
-        return AsyncAdepters.toListenable(
-//                databaseClient.store(completionStage);
-        );
-    }
+//    public ListenableFuture<T> requestData() {
+////        AsyncRestTemplate httpClient = ;
+////        AsyncDatabaseClient databaseClient = ;
+//
+//        CompletionStage<String> completionStage = AsyncAdepters.toCompletion(
+////                httpClient.execute()
+//        );
+//
+//        return AsyncAdepters.toListenable(
+////                databaseClient.store(completionStage);
+//        );
+//    }
 }

@@ -8,7 +8,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-public class PullModel {
+class PullModel {
 //    final AsyncDatabaseClient dbClient =
 
     public CompletionStage<Queue<String>> list(int count) {
@@ -21,19 +21,19 @@ public class PullModel {
     }
 
     void pull(String elementId, Queue<String> queue, CompletableFuture resultFuture, int count) {
-        dbClient.getNextAfterId(elementId)
-                .thenAccept(item -> {
-                    if (isValid(item)) {
-                        queue.offer(item);
-
-                        if (queue.size() == count) {
-                            resultFuture.complete(queue);
-                            return;
-                        }
-                    }
-
-                    pull(item, queue, resultFuture, count);
-                });
+//        dbClient.getNextAfterId(elementId)
+//                .thenAccept(item -> {
+//                    if (isValid(item)) {
+//                        queue.offer(item);
+//
+//                        if (queue.size() == count) {
+//                            resultFuture.complete(queue);
+//                            return;
+//                        }
+//                    }
+//
+//                    pull(item, queue, resultFuture, count);
+//                });
     }
 
 }

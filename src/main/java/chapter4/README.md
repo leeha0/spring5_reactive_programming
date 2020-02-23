@@ -349,9 +349,9 @@ Hooks.onOperatorDebug()
 ##### 조립 단계
 * 조립: 시행 흐름을 작성하는 프로세스
 * 복잡한 처리 흐름을 구현할 수 있는 연쇄형 API 제공
-* 빌더 패턴과 유사하게 보이지만 불변성을 제공하여 각각의 연산자가 새로운 객체를 생성
+* 빌더 패턴과 유사하게 보이지만 불변성을 제공하기위해 내부적으로 각각의 연산자가 새로운 객체를 생성
 * 조립 단계에서 최적화 수행   
-    -> concatWith
+    -> concatWith: 동일한 연산자 체인일 경우 하나로 압축
 ```java
 FluxFilter (
     MapFilter (
@@ -362,9 +362,9 @@ FluxFilter (
 
 ##### 구독 단계
 * 특정 Publisher를 구독할 때 발생
-* 리액터에서 멀티 스레딩을 지원하는 일부 연산자는 구독이 발생하는 작업자 변경이 가능 
-* 구독 단계에서 최적화 수행
+* 구독할 Publisher는 내부적으로 일련의 Publisher 체인으로 이루어짐
 * 조립 단계와 래핑 구조가 역피라미드 형태를 띈다
+* 구독 단계에서 최적화 수행
 ```java
 ArraySubscriber (
     MapSubscriber (
@@ -378,9 +378,10 @@ ArraySubscriber (
 ##### 런타임 단계
 * 게시자와 구독자 간에 실제 신호가 교환
 * onSubscribe 시그널과 request 시그널을 이용해 교환
-* 런타임 단계에서 신호 교환량을 줄이기 위한 최적화 수행
-    * request: 내부적으로 volatile 필드를 대상으로 읽기/쓰기가 발생하여 고비용 발생
-    * volatile: 주메모리 저장 표시    
+* 런타임 단계에서 신호 교환량을 줄이기 위하여 최적화 수행
+    * request 호출 횟수를 줄여 스트림 성능 향상
+        * 내부적으로 volatile 필드를 대상으로 읽기/쓰기가 발생하여 고비용 발생
+        * volatile: 주메모리 저장 표시    
     
 * Subscription 래퍼 피라미드
 ```java
@@ -391,6 +392,7 @@ FilterSubscription (
 )
 ```
 * request 래퍼 피라미드 - 요청
+* 런타임 중에 데이터는 소스로부터 Subscriber 체인을 거쳐 단계마다 다른 기능을 수행
 ```java
 FilterSubscription(MapSubscription(ArraySubscription(...)))
     .request(10) {
@@ -433,21 +435,25 @@ ArraySubscription.request(10) {
 
 ##### publishOn 연산자
 * 런타임 실행의 일부를 지정된 워커로 이동
-* 스트림에 대한 특정 워커를 선택하는 용도로 사용
-* 런타임 실행에 초점
-* 내부적으로 전용 워커가 메시지를 하나씩 처리할 수 있도록 큐를 갖음
-* 별도의 스레드에서 실행하여 비동기 영역에 의해 실행 플로 분할
-* Scheduler: 런타임에 데이터를 처리할 워커를 지정하기 위한 개념으로 워커 또는 워커 풀을 나타내는 인터페이스
-* 직렬성: 원소는 하나씩 처리되므로 항상 모든 이벤트에 순서를 엄격하게 정의
+* publishOn 연산자가 실행된 이후 Scheduler에 의해 별도의 스레드에서 실행
+* 다운스트림에 대해서만 실행 영향 가능
+
+https://projectreactor.io/docs/core/release/api/reactor/core/publisher/Flux.html#publishOn-reactor.core.scheduler.Scheduler-
+
+> Scheduler: 런타임에 데이터를 처리할 워커를 지정하기 위한 개념으로 워커 또는 워커 풀을 나타내는 인터페이스
+> Worker: Thread 또는 리소스를 추상화 한 것
+> 직렬성: 원소는 하나씩 처리되므로 항상 모든 이벤트에 순서를 엄격하게 정의
 
 ##### publishOn 연산자를 이용한 병렬 처리
-* publishOn 연산자는 리액티브 스트림의 원소를 동시에 처리하지 못하는 것처럼 보이지만, 미세한 규모의 조정 및 처리 흐름의 병렬 처리 가능 
-* 처리 단계 사이에 비동기 영역을 추가하여 병렬 처리
+* publishOn 연산자는 처리 단계 사이에 비동기 영역을 추가하여 병렬 처리를 가능하게 함
 
 ##### subscribeOn 연산자
 * 구독 체인에서 워커의 작업 위치를 변경
 * 구독을 수행할 워커를 지정할 수 있음
-* 구독 시간에 수행
+* 구독 시간과 런타임 시간에 별도의 스레드 지정 가능
+* 다운스트림/업스트림 실행 영향 가능
+
+https://projectreactor.io/docs/core/release/api/reactor/core/publisher/Flux.html#subscribeOn-reactor.core.scheduler.Scheduler-
 
 ##### parallel 연산자
 * 병렬처리를 위한 연산자로 하위 스트림에 대한 플로 분할과 분할된 플로 간 균형 조정 역할
@@ -465,27 +471,22 @@ ArraySubscription.request(10) {
     * parallel
 * ElasticScheduler: 동적으로 작업자를 만들고 스레드 풀을 캐시 (I/O 집약적 작업에 적합)
     * elastic
-* scheduler: 워크 풀을 나타냄
-* worker: Thread 또는 리소스를 추상화 한 것
-
+    
 ##### 리액터 컨텍스트
-* 리액터의 핵심요소로 런타임 단계에서 필요한 컨텍스트 정보에 엑세스할 수 있도록 하는 것
-* 스트림에 따라 전달되는 인터페이스
-* Context는 본질적으로 Immutable 객체라서 새로운 요소를 추가하면 Context는 새로운 인스턴스로 변경
-* 내부적으로 Context 전달을 위해 CoreSubscriber 인터페이스 구현 
+* Context는 리액터의 핵심요소로 런타임 단계에서 필요한 컨텍스트 정보에 엑세스할 수 있도록 한다
+* Context는 멀티 스레드 엑세스 모델을 고려하여 Immutable 객체로 생성되어 새로운 요소를 추가하면 새로운 인스턴스로 변경 한다
 * subscriberContext: 리액터의 Context에 접근
-* 멀티 스레드 액세스 모델 고려
 
 > ThreadLocal vs Context  
 > * ThreadLocal은 단일 스레드를 이용할 때만 제대로 동작하기 때문에 비동기 처리 방식에서는 ThreadLocal을 상용할 수 있는 구간이 매우 짧음
 
-#### 프로젝트 리액터의 내부 구조현
-* 리액티브 스트림 연산자 융합
+#### 프로젝트 리액터의 내부 구조
+* 연산자 융합
 
 ##### 매크로 퓨전
-* 연산자를 다른 연산자로 교체하는 것에 목적 즉, 조합된 흐름을 최적화 하는 것
-* 연산자를 다른 변환 작업과 함께 사용할 경우 발생하는 오버헤드를 줄이기 위해 조립 단계 동안 최적화 수행
-* 최적화로 인해 다운스트림의 실행이 변경되지 않으므로 최적화된 스트림을 실행해 동일한 결과를 얻을 수 있음
+* 조립 단계에서 연산자를 다른 연산자로 교체하는 것에 목적으로 하며, 연산자들 간의 오버헤드를 줄이는 최적화 작업 수행 
+    * Callable, ScalarCallable과 같은 인터페이스를 구현한 경우
+
 ```java
 Flux.just(1)
     .publishOn(...) // 큐를 만들고, volatile 읽기 쓰기 발생
@@ -494,7 +495,7 @@ Flux.just(1)
 ```
 
 ##### 마이크로 퓨전
-* 좀 더 복잡한 최적화이며 런타임 최적화 및 공유 리소스 재사용과 관련
+* 런타임 최적화 및 공유 리소스 재사용과 관련
 * 조건부 연산자
     ```java
     Flux.from(factory)
@@ -504,22 +505,21 @@ Flux.just(1)
     
     * 필터 연사나자 같은 조건부 연산자가 전체 성능에 지대한 영향을 미침
         * 조건부 연산자를 통해 이동 중 일부 원소가 거부 될 경우 다운스트림 요구 사항을 충족하기 위해 request(1) 발생하는 경우
-    * 마이크로 퓨전 유형의 ConditionalSubscriber 존재
-    
+    * 마이크로 퓨전 유형의 ConditionalSubscriber 존재하여 이런 경우 최적화를 수행
+        * 소스측에서 조건을 확인하여 추가적인 request(1) 없이 필요한 개수를 전송
 
 * 연산자 간 비동기 경계
 ```java
 Flux.just(1, 2, 3)
     .publishOn(Schedulers.parallel()) // 비동기 경계
-    .concatMap(i -> Flux.range(0, i) // 잠재적으로 업스트림으로 부터 i개의 원소 생성, 예측 불가능
-                .publishOn(Schedulers.parallel())) // 비동기 경계
+    .concatMap(i -> Flux
+                        .range(0, i) // 잠재적으로 업스트림으로 부터 i개의 원소 생성, 예측 불가능하여 큐가 필요
+                        .publishOn(Schedulers.parallel())) // 비동기 경계
     .subscribe();
 ```
 
-* 연산자 체인시 두 개의 비동기 경계가 포함 (큐 필요)
-* 예측 불가능하여, 배압을 처리하고 컨슈머 오버플로를 발생시키지 않으려면 처리 결과를 큐에 넣는 작업 필요
-* 비동기 경계 외부에서 요청하는 request()는 매우 위험 
-* 메모리에 더 많은 부하가 발생할 수 있음
-* 경계 또는 경계 내부의 원소 체인에 공유 큐가 있다면, request 없이 업스트림 연산자가 큐를 사용하도록 연산자 체인을 전환하여 성능 개선이 필요
+* 연산자 체인시 두 개의 비동기 경계가 포함
+* 예측 불가능한 작업의 경우 배압을 처리하고 컨슈머 오버플로를 발생시키지 않으려면 처리 결과를 큐에 넣는 작업 필요 (concatMap)
+* 경계 또는 경계 내부의 원소 체인에 공유 큐를 놓고 request 없이 업스트림 연산자가 큐를 사용하도록 최적화
 
 > CAS(Compare and swap): 동시성 구현을 위해 값을 비교한 후 일치한 경우에 값을 교체하는 기법, 작업의 성공 여부에 따라 1 또는 0 값을 반환하는 단일 작업
